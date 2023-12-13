@@ -1,0 +1,95 @@
+---
+title: "Final Project"
+author: "Austin Rice"
+date: "2023-11-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Loading libraries and pre processing data
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(caret)
+library(randomForest)
+library(pROC)
+set.seed(123)
+mushrooms = read.delim("C:\\Users\\madde\\Downloads\\mushroom\\agaricus-lepiota.data", sep = ",", header = FALSE)
+mushrooms = mushrooms %>% rename(
+                poisonous = V1,
+                cap_shape = V2,
+                cap_surface = V3,
+                cap_color = V4,
+                bruises = V5,
+                odor = V6,
+                gill_attachment = V7,
+                gill_spacing = V8,
+                gill_size = V9,
+                gill_color = V10,
+                stalk_shape = V11,
+                stalk_root = V12,
+                stalk_surface_above_ring = V13,
+                stalk_surface_below_ring = V14,
+                stalk_color_above_ring = V15,
+                stalk_color_below_ring = V16,
+                veil_type = V17,
+                veil_color = V18,
+                ring_number = V19,
+                ring_type = V20,
+                spore_color = V21,
+                population = V22,
+                habitat = V23
+                )
+mushrooms <- as.data.frame(unclass(mushrooms),stringsAsFactors=TRUE)
+```
+
+Splitting test/train sets
+```{r}
+train_inputs = createDataPartition(y = mushrooms$poisonous, p = 0.8, list = FALSE)
+mush_train = mushrooms[train_inputs,]
+mush_test = mushrooms[-train_inputs,]
+mush_no_target = select(mush_train, -poisonous)
+```
+
+1st Tree Model
+```{r}
+simple_tree = train(y = mush_train$poisonous,
+                    x = mush_no_target,
+                    method = 'rpart')
+library(rpart.plot)
+rpart.plot(simple_tree$finalModel)
+plot(varImp(simple_tree)) ## this plot will show the most important variables 
+simple_pred = predict(simple_tree, newdata = mush_test)
+confusionMatrix(simple_pred, mush_test$poisonous)
+
+```
+
+Excellent, after the first model we have 99.75% accuracy. 
+Let's modify the model by making it a random forest.
+
+2nd Tree Model
+```{r}
+random_forest = train(y = mush_train$poisonous,
+                      x = mush_no_target,
+                      method = "rf", prox = TRUE,
+                      verbose = TRUE)
+forest_pred = predict(random_forest, newdata = mush_test)
+plot(varImp(random_forest))
+confusionMatrix(forest_pred, mush_test$poisonous)
+
+```
+
+And there it is: we achieved 100% accuracy!
+
+
+Comparing the two models
+```{r}
+comparison = resamples(list(simple = simple_tree, forest = random_forest))
+summary(comparison)
+```
+
